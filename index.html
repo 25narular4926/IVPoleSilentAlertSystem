@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>IV Monitoring System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fluid-green { background-color: #4CAF50; }
+        .fluid-yellow { background-color: #FFC107; }
+        .fluid-red { background-color: #FF5722; }
+        .battery-green { background-color: #4CAF50; }
+        .battery-yellow { background-color: #FFC107; }
+        .battery-red { background-color: #FF5722; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .critical-pulse { animation: pulse 1s infinite; }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            width: 90%;
+            max-width: 500px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Modal -->
+    <div id="ivPoleModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="modalTitle" class="text-2xl font-bold">IV Pole Details</h2>
+                <button onclick="closeModal()" class="text-red-500 hover:text-red-700">
+                    ✕
+                </button>
+            </div>
+            <div id="modalDetails" class="space-y-4">
+                <!-- Detailed information will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-8">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl font-bold text-blue-800">IV Pole Monitoring</h1>
+            <div class="flex items-center">
+                <span class="mr-4">View:</span>
+                <div class="flex bg-gray-200 rounded-lg">
+                    <button onclick="switchView('device')" 
+                        class="view-toggle px-4 py-2 rounded-l-lg bg-blue-500 text-white">
+                        Device
+                    </button>
+                    <button onclick="switchView('pager')" 
+                        class="view-toggle px-4 py-2 rounded-r-lg">
+                        Pager
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Device View -->
+        <div id="deviceView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- IV Pole devices will be dynamically added here -->
+        </div>
+
+        <!-- Pager View -->
+        <div id="pagerView" class="hidden">
+            <div class="bg-white shadow-lg rounded-lg p-6">
+                <h2 class="text-2xl font-bold mb-6">Nurse Pager Alerts</h2>
+                <div id="pagerAlertContainer" class="space-y-4">
+                    <!-- Alerts will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-6 text-center">
+        <input type="text" id="poleIdInput" placeholder="Enter IV Pole ID" 
+            class="border p-2 rounded mr-4">
+        <button onclick="addIVPole()" 
+            class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+            Add IV Pole
+        </button>
+    </div>
+
+    <script>
+        class IVPole {
+            constructor(id) {
+                this.id = id;
+                this.fluidLevel = 100;
+                this.batteryLevel = 100;
+                this.patientName = `Patient ${Math.floor(Math.random() * 1000)}`;
+                this.medication = ['Saline', 'Antibiotics', 'Pain Medication', 'Hydration'][Math.floor(Math.random() * 4)];
+                this.lastChecked = new Date().toLocaleString();
+                this.status = 'normal';
+                this.element = this.createDeviceElement();
+                this.pagerAlert = null;
+            }
+
+            createDeviceElement() {
+                const card = document.createElement('div');
+                card.className = 'bg-white shadow-lg rounded-lg p-6 border-4 border-green-500 cursor-pointer';
+                card.onclick = () => this.showDetailsModal();
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold">IV Pole ${this.id}</h2>
+                        <span class="status-badge font-bold px-2 py-1 rounded">Normal</span>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span>Fluid Level</span>
+                            <span class="fluid-level">100%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-4">
+                            <div class="fluid-bar h-4 rounded-full fluid-green" style="width: 100%"></div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Battery Level</span>
+                            <span class="battery-level">100%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-4">
+                            <div class="battery-bar h-4 rounded-full battery-green" style="width: 100%"></div>
+                        </div>
+                    </div>
+                `;
+                return card;
+            }
+
+            showDetailsModal() {
+                const modal = document.getElementById('ivPoleModal');
+                const modalTitle = document.getElementById('modalTitle');
+                const modalDetails = document.getElementById('modalDetails');
+
+                modalTitle.textContent = `IV Pole ${this.id} Details`;
+                modalDetails.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="flex justify-between">
+                            <span class="font-semibold">Fluid Level:</span>
+                            <span class="fluid-level">${this.fluidLevel}%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-semibold">Battery Level:</span>
+                            <span class="battery-level">${this.batteryLevel}%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-semibold">Patient Name:</span>
+                            <span>${this.patientName}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-semibold">Medication:</span>
+                            <span>${this.medication}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-semibold">Last Checked:</span>
+                            <span>${this.lastChecked}</span>
+                        </div>
+                    </div>
+                `;
+                modal.style.display = 'flex';
+            }
+
+            updateStatus() {
+                const card = this.element;
+                const statusBadge = card.querySelector('.status-badge');
+                const fluidLevel = card.querySelector('.fluid-level');
+                const fluidBar = card.querySelector('.fluid-bar');
+                const batteryLevel = card.querySelector('.battery-level');
+                const batteryBar = card.querySelector('.battery-bar');
+
+                // Update battery bar color and width
+                if (this.batteryLevel <= 20) {
+                    batteryBar.className = 'battery-bar h-4 rounded-full battery-red';
+                    batteryBar.style.width = `${this.batteryLevel}%`;
+                } else if (this.batteryLevel <= 50) {
+                    batteryBar.className = 'battery-bar h-4 rounded-full battery-yellow';
+                    batteryBar.style.width = `${this.batteryLevel}%`;
+                } else {
+                    batteryBar.className = 'battery-bar h-4 rounded-full battery-green';
+                    batteryBar.style.width = `${this.batteryLevel}%`;
+                }
+
+                // Update battery level text
+                batteryLevel.textContent = `${this.batteryLevel}%`;
+
+                // Fluid level status update
+                if (this.fluidLevel <= 20) {
+                    this.status = 'critical';
+                    card.className = 'bg-white shadow-lg rounded-lg p-6 border-4 border-red-500 critical-pulse cursor-pointer';
+                    statusBadge.textContent = 'Critical';
+                    statusBadge.className = 'status-badge bg-red-500 text-white px-2 py-1 rounded';
+                    fluidBar.className = 'fluid-bar h-4 rounded-full fluid-red';
+                    this.createPagerAlert('critical');
+                } else if (this.fluidLevel <= 50) {
+                    this.status = 'warning';
+                    card.className = 'bg-white shadow-lg rounded-lg p-6 border-4 border-yellow-500 cursor-pointer';
+                    statusBadge.textContent = 'Low';
+                    statusBadge.className = 'status-badge bg-yellow-500 text-white px-2 py-1 rounded';
+                    fluidBar.className = 'fluid-bar h-4 rounded-full fluid-yellow';
+                    this.createPagerAlert('warning');
+                } else {
+                    this.status = 'normal';
+                    card.className = 'bg-white shadow-lg rounded-lg p-6 border-4 border-green-500 cursor-pointer';
+                    statusBadge.textContent = 'Normal';
+                    statusBadge.className = 'status-badge bg-green-500 text-white px-2 py-1 rounded';
+                    fluidBar.className = 'fluid-bar h-4 rounded-full fluid-green';
+                    this.removePagerAlert();
+                }
+
+                fluidLevel.textContent = `${this.fluidLevel}%`;
+                fluidBar.style.width = `${this.fluidLevel}%`;
+            }
+
+            createPagerAlert(type) {
+                // Remove existing alert if any
+                this.removePagerAlert();
+
+                const pagerAlertContainer = document.getElementById('pagerAlertContainer');
+                this.pagerAlert = document.createElement('div');
+                this.pagerAlert.className = `p-4 rounded flex justify-between items-center ${type === 'critical' ? 'bg-red-100' : 'bg-yellow-100'}`;
+                this.pagerAlert.innerHTML = `
+                    <div>
+                        <h3 class="font-bold ${type === 'critical' ? 'text-red-700' : 'text-yellow-700'}">
+                            ${type === 'critical' ? 'CRITICAL ALERT' : 'WARNING'}
+                        </h3>
+                        <p>IV Pole ${this.id} - ${type === 'critical' ? 'Immediate Action Required' : 'Low Fluid'}</p>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="text-lg font-bold mr-4">${this.fluidLevel}%</span>
+                        <button onclick="refillIVPole('${this.id}')" 
+                            class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
+                            Refill
+                        </button>
+                    </div>
+                `;
+                pagerAlertContainer.appendChild(this.pagerAlert);
+            }
+
+            removePagerAlert() {
+                if (this.pagerAlert) {
+                    this.pagerAlert.remove();
+                    this.pagerAlert = null;
+                }
+            }
+
+            simulateRandomChanges() {
+                this.fluidLevel = Math.max(0, this.fluidLevel - Math.floor(Math.random() * 10));
+                this.batteryLevel = Math.max(0, this.batteryLevel - Math.floor(Math.random() * 5));
+                this.lastChecked = new Date().toLocaleString();
+                this.updateStatus();
+            }
+
+            refill() {
+                this.fluidLevel = 100;
+                this.updateStatus();
+            }
+        }
+
+        const ivPoles = {};
+
+        function addIVPole() {
+            const poleIdInput = document.getElementById('poleIdInput');
+            const poleId = poleIdInput.value.trim();
+
+            if (poleId && !ivPoles[poleId]) {
+                const newPole = new IVPole(poleId);
+                ivPoles[poleId] = newPole;
+                document.getElementById('deviceView').appendChild(newPole.element);
+                
+                setInterval(() => {
+                    newPole.simulateRandomChanges();
+                }, 3000);
+
+                poleIdInput.value = '';
+            } else if (ivPoles[poleId]) {
+                alert('IV Pole with this ID already exists');
+            } else {
+                alert('Please enter a valid IV Pole ID');
+            }
+        }
+
+        function switchView(view) {
+            const deviceView = document.getElementById('deviceView');
+            const pagerView = document.getElementById('pagerView');
+            const toggleButtons = document.querySelectorAll('.view-toggle');
+
+            toggleButtons.forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white');
+            });
+
+            if (view === 'device') {
+                deviceView.classList.remove('hidden');
+                pagerView.classList.add('hidden');
+                toggleButtons[0].classList.add('bg-blue-500', 'text-white');
+            } else {
+                deviceView.classList.add('hidden');
+                pagerView.classList.remove('hidden');
+                toggleButtons[1].classList.add('bg-blue-500', 'text-white');
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('ivPoleModal');
+            modal.style.display = 'none';
+        }
+
+        function refillIVPole(poleId) {
+            const pole = ivPoles[poleId];
+            if (pole) {
+                pole.refill();
+                pole.removePagerAlert();
+                alert(`IV Pole ${poleId} has been refilled.`);
+            }
+        }
+
+        // Initialize with Device view selected
+        switchView('device');
+    </script>
+</body>
+</html>
